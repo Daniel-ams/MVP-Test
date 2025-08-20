@@ -1,9 +1,9 @@
 // Convoking4 Organizational Snapshot Assessment
-// Version: 8.1 (Hybrid)
+// Version: 8.2 (Comprehensive)
 // Date: August 20, 2025
 
 (function() {
-    const APP_VERSION = '8.1 (Hybrid)';
+    const APP_VERSION = '8.2 (Comprehensive)';
     const form = document.getElementById('profile-form');
     const formContainer = document.getElementById('dynamic-form-content');
     const navLinksContainer = document.getElementById('nav-links-container');
@@ -49,7 +49,6 @@
         let optionsHTML = options.map(opt => {
             const uniqueId = `${id}-${opt.label.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
             const optDescription = opt.description ? `<p class="option-description">${opt.description}</p>` : '';
-            const optExample = opt.example ? `<p class="option-example">${opt.example}</p>` : '';
             const showFor = opt.showFor ? `data-show-for="${opt.showFor.join(',')}"` : '';
             const containerClass = opt.showFor ? 'conditional-field' : '';
 
@@ -59,7 +58,6 @@
                             <label for="${uniqueId}">${opt.label}</label>
                         </div>
                         ${optDescription}
-                        ${optExample}
                     </div>`;
         }).join('');
 
@@ -70,82 +68,146 @@
                 </div>`;
     };
 
-    // --- VERSION 8.1 (HYBRID) FORM BLUEPRINT ---
+    const createRankedChoice = (id, title, description, options, path) => {
+        let optionsHTML = options.map(opt => {
+            const uniqueId = `${id}-${opt.label.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+            return `<div class="input-group-container">
+                        <div class="input-group">
+                            <input type="number" class="rank-input" min="1" max="${options.length}" data-rank-value="${opt.label}">
+                            <label for="${uniqueId}" class="rank-label">${opt.label}</label>
+                        </div>
+                    </div>`;
+        }).join('');
+
+        return `<div class="form-group">
+                    <label class="main-label">${title}</label>
+                    ${description ? `<p class="description">${description}</p>` : ''}
+                    <div class="rank-choice-group" data-rank-path="${path}">${optionsHTML}</div>
+                </div>`;
+    };
+    
+    const createSlider = (id, title, description, path, minLabel = 'Low', maxLabel = 'High') => {
+        return `<div class="form-group">
+                    <label for="${id}" class="main-label">${title}</label>
+                    ${description ? `<p class="description">${description}</p>` : ''}
+                    <div class="slider-container">
+                        <span class="slider-label">${minLabel}</span>
+                        <input type="range" id="${id}" min="1" max="10" value="5" class="confidence-slider" data-path="${path}">
+                        <span class="slider-label">${maxLabel}</span>
+                    </div>
+                </div>`;
+    };
+
+    // --- VERSION 8.2 (COMPREHENSIVE) FORM BLUEPRINT ---
     const sections = [
         {
-            title: "Section 1: Basic Information & Archetype", id: "section-basic-info", path: "basicInfo",
-            description: "Start with the basics. This helps identify the organization and its fundamental purpose.",
+            title: "Section 1: Basic Information", id: "section-basic-info", path: "basicInfo",
+            description: "Start with the basics. This helps identify the organization and its context.",
+            changesPrompt: "Any recent changes to your organization's name, location, or founding team?",
+            goalsPrompt: "What is your primary goal related to your basic identity? (e.g., formalize incorporation, establish a new HQ)",
             parts: [
                 createInputField("org-name", "1.1 Organization Name", "", "basicInfo.organizationName", "Example: HealthyCare Clinic", "text", {required: true}),
                 createInputField("org-year", "1.2 Year Founded", "", "basicInfo.yearFounded", "Example: 2015", "number", {min: "1800", max: new Date().getFullYear()}),
                 createInputField("org-city", "1.3 Primary City", "", "basicInfo.city", "Example: Raleigh"),
                 createInputField("org-country", "1.4 Primary Country", "", "basicInfo.country", "Example: United States"),
-                createMultiChoice("org-archetype", "1.5 Primary Organizational Archetype", "Select the option that best describes your organization's fundamental purpose.", "radio", [
-                    {label: "For-Profit Business", description: "Primary focus is generating profit for owners or shareholders."},
-                    {label: "Mission-Driven Organization", description: "Primary focus is a social or public good (e.g., non-profit, NGO)."},
-                    {label: "Member/Community-Based Organization", description: "Primary focus is serving a specific group of members (e.g., club, association)."},
-                    {label: "Hybrid Organization", description: "Blends profit-generation with a core social or community mission (e.g., B-Corp)."},
-                    {label: "Uncertain", description: "The organization's purpose is not clearly defined."}
-                ], "basicInfo.archetype"),
             ]
         },
         {
-            title: "Section 2: Identity & Structure", id: "section-identity", path: "identity",
-            description: "Define the core operational and legal structure of your organization.",
+            title: "Section 2: Organization Identity", id: "section-identity", path: "identity",
+            description: "Define the core operational, legal, and purposeful structure of your organization.",
+            changesPrompt: "Have there been any recent shifts in your legal structure, funding model, or target scale?",
+            goalsPrompt: "What is your top goal related to your identity? (e.g., Secure Series A funding, transition to a non-profit)",
             parts: [
-                 createMultiChoice("funding-model", "2.1 Primary Funding Model", "How does your organization primarily finance its operations?", "radio", [
+                createMultiChoice("org-archetype", "2.1 Primary Organizational Archetype", "Select the option that best describes your organization's fundamental purpose.", "radio", [
+                    {label: "For-Profit Business"}, {label: "Mission-Driven Organization"}, {label: "Member/Community-Based Organization"}, {label: "Hybrid Organization"}, {label: "Uncertain"}
+                ], "identity.archetype"),
+                createMultiChoice("funding-model", "2.2 Primary Funding Model", "How does your organization primarily finance its operations?", "radio", [
                     {label: "Revenue from Services/Products", showFor: ["For-Profit Business", "Hybrid Organization"]},
                     {label: "Donations/Grants", showFor: ["Mission-Driven Organization", "Hybrid Organization"]},
                     {label: "Membership Fees", showFor: ["Member/Community-Based Organization"]},
                     {label: "Bootstrapping", showFor: ["For-Profit Business"]},
                     {label: "Uncertain"}
                 ], "identity.fundingModel"),
-                createMultiChoice("legal-structure", "2.2 Legal Structure", "What is your organization's legal form?", "radio", [
+                createMultiChoice("legal-structure", "2.3 Legal Structure", "What is your organization's legal form?", "radio", [
                     {label: "LLC", showFor: ["For-Profit Business", "Hybrid Organization"]},
                     {label: "Corporation (C-Corp/S-Corp)", showFor: ["For-Profit Business", "Hybrid Organization"]},
                     {label: "Nonprofit/NGO", showFor: ["Mission-Driven Organization"]},
-                    {label: "Pre-Formal/Informal"},
-                    {label: "Uncertain"}
+                    {label: "Pre-Formal/Informal"}, {label: "Uncertain"}
                 ], "identity.legalStructure"),
                 `<div class="subsection-container conditional-field" data-show-for="For-Profit Business,Hybrid Organization">
-                    <label class="main-label">2.3 Financial Health Snapshot (Optional)</label>
+                    <label class="main-label">2.4 Financial Health Snapshot (Optional)</label>
                     <p class="description">Provide metrics for a consistent time-frame (e.g., trailing 6 months).</p>
-                    ${createInputField("burn-rate", "Monthly Burn Rate (USD)", "", "identity.financials.monthlyBurnRate", "", "number", {placeholder: "e.g., 50000"})}
-                    ${createInputField("runway", "Cash Runway (Months)", "", "identity.financials.cashRunwayMonths", "", "number", {placeholder: "e.g., 18"})}
+                    ${createInputField("burn-rate", "Monthly Burn Rate (USD)", "", "identity.financials.monthlyBurnRate", "", "number")}
+                    ${createInputField("runway", "Cash Runway (Months)", "", "identity.financials.cashRunwayMonths", "", "number")}
                 </div>`,
-                createMultiChoice("org-size", "2.4 Organization Size (People)", "Based on employees, members, or active participants.", "radio", [
+                createMultiChoice("org-size", "2.5 Organization Size (People)", "Based on employees, members, or active participants.", "radio", [
                     {label: "Micro (<10)"}, {label: "Small (10–50)"}, {label: "Medium (51–200)"}, {label: "Large (>200)"}, {label: "Uncertain"}
                 ], "identity.size"),
             ]
         },
         {
-            title: "Section 3: Key Performance Indicators (KPIs)", id: "section-kpis", path: "kpis",
+            title: "Section 3: Core Strategy", id: "section-strategy", path: "strategy", isCritical: true,
+            description: "Define your organization's strategic direction. This is the compass that guides your decisions.",
+            changesPrompt: "Have there been any recent pivots or refinements to your mission, vision, or core values?",
+            goalsPrompt: "What is your primary goal for your strategy itself? (e.g., achieve mission-alignment in all departments)",
+            parts: [
+                createTextField("mission-statement", "3.1 Mission Statement", "Your 'Why'. What is your organization's core purpose?", 3, "strategy.missionStatement"),
+                createTextField("vision-statement", "3.2 Vision Statement", "Your 'Where'. What is the future you aim to create?", 3, "strategy.visionStatement"),
+                createTextField("core-values", "3.3 Core Values & a Recent Example", "For one of your core values, describe a specific, recent example of how the team lived (or failed to live) that value.", 4, "strategy.valuesAndBehaviors", "Example: Value: Customer Obsession. Behavior: An engineer stayed up all night to fix a single customer's critical bug."),
+                createTextField("north-star-metric", "3.4 North Star Metric", "What is the single most important metric that measures the value you deliver to your customers?", 2, "strategy.northStarMetric", `Example: For Slack, it might be "Daily Active Users."`),
+            ]
+        },
+        {
+            title: "Section 4: Key Performance Indicators (KPIs)", id: "section-kpis", path: "kpis",
             description: "Strategy without data is speculation. Provide core metrics to create a quantitative baseline.",
             parts: [
-                createMultiChoice("financial-metrics-checkboxes", "3.1 Financial Metrics", "Select all relevant financial indicators.", "checkbox", [
+                createMultiChoice("financial-metrics-checkboxes", "4.1 Financial Metrics", "Select all relevant financial indicators.", "checkbox", [
                     {label: "Annual Recurring Revenue (ARR)"}, {label: "Monthly Burn Rate"}, {label: "Cash Runway (Months)"}, {label: "LTV:CAC Ratio"}, {label: "Gross Margin"}
                 ], "kpis.financialMetrics"),
                 createSelectField("important-financial-metric-select", "Of those, which is the SINGLE most important financial metric right now?", "", "kpis.mostImportantFinancial", []),
-                createMultiChoice("customer-metrics-checkboxes", "3.2 Customer Metrics", "Select all relevant customer health indicators.", "checkbox", [
+                createMultiChoice("customer-metrics-checkboxes", "4.2 Customer Metrics", "Select all relevant customer health indicators.", "checkbox", [
                     {label: "Active Users/Customers"}, {label: "Churn Rate (%)"}, {label: "Net Promoter Score (NPS)"}, {label: "Customer Satisfaction (CSAT)"}, {label: "Customer Retention Rate"}
                 ], "kpis.customerMetrics"),
                 createSelectField("important-customer-metric-select", "Of those, which is the SINGLE most important customer metric right now?", "", "kpis.mostImportantCustomer", [])
             ]
         },
         {
-            title: "Section 4: Stakeholders & Market", id: "section-stakeholders-market", path: "stakeholdersMarket",
+            title: "Section 5: Stakeholders & Market", id: "section-market", path: "market", isCritical: true,
             description: "Define who you serve and the environment you operate in.",
             parts: [
-                createTextField("buyer-jtbd", "4.1 Economic Buyer's / Sponsor's Job To Be Done", "Describe the needs of the stakeholder who approves the budget or enables the project (e.g., the Purchaser, the Organizer, the Sponsor).", 4, "stakeholdersMarket.buyerJtbd", `Framework: "When [business situation], I want to [approve a solution], so I can [achieve business outcome]."`),
-                createTextField("user-jtbd", "4.2 End User's / Member's Job To Be Done", "Describe the needs of the stakeholder who directly uses the product or participates in the activity (e.g., the Daily User, the Beneficiary, the Member).", 4, "stakeholdersMarket.userJtbd", `Framework: "When [I am doing my work], I want to [use a tool], so I can [achieve a personal/team benefit]."`),
+                createTextField("icp", "5.1 Ideal Customer Profile", "Describe your primary customer. Who are they and what do they need?", 4, "market.icp"),
+                createTextField("buyer-jtbd", "5.2 Economic Buyer's / Sponsor's Job To Be Done", "Describe the needs of the stakeholder who approves the budget or enables the project (e.g., the Purchaser, the Organizer, the Sponsor).", 4, "market.buyerJtbd", `Framework: "When [business situation], I want to [approve a solution], so I can [achieve business outcome]."`),
+                createTextField("user-jtbd", "5.3 End User's / Member's Job To Be Done", "Describe the needs of the stakeholder who directly uses the product or participates in the activity (e.g., the Daily User, the Beneficiary, the Member).", 4, "market.userJtbd", `Framework: "When [I am doing my work], I want to [use a tool], so I can [achieve a personal/team benefit]."`),
+                createTextField("uvp", "5.4 Unique Value Proposition", "What makes your organization unique and why should customers choose you?", 3, "market.uvp"),
+                createMultiChoice("market-dynamics", "5.5 Competitive Landscape: Market Dynamics", "", "radio", [{label: "Dominant Leader"}, {label: "Oligopoly (A few major players)"}, {label: "Fragmented (Many small players)"}, {label: "Emerging (New market)"}], "market.marketDynamics"),
+                createSlider("market-confidence", "5.6 Confidence in This Section", "How confident are you in your assessment of the customer and market?", "market.confidenceScore", "Very Uncertain", "Very Confident"),
             ]
         },
         {
-            title: "Section 5: Strategic Momentum", id: "section-momentum", path: "strategicMomentum",
-            description: "This captures your organization's dynamics—what's working and what isn't.",
+            title: "Section 6: Operations & Culture", id: "section-operations", path: "operations", isCritical: true,
+            description: "Evaluate your internal workings—what you offer, how you decide, and how you manage risk.",
+            changesPrompt: "Any recent operational changes like new tools, team restructuring, or shifts in decision-making?",
+            goalsPrompt: "What is your top internal operational priority for the next year? (e.g., reduce product development cycle time by 20%)",
             parts: [
-                createTextField("tailwind", "5.1 What is the #1 thing that is working well and you should do more of? (Your biggest tailwind)", "", 3, "strategicMomentum.tailwind"),
-                createTextField("headwind", "5.2 What is the #1 thing that is not working and you should stop doing? (Your biggest headwind)", "", 3, "strategicMomentum.headwind")
+                createMultiChoice("primary-offering", "6.1 Primary Offering", "What is the main product or service you provide?", "radio", [{label: "Digital Product"}, {label: "Service"}, {label: "Hybrid (Product & Service)"}, {label: "Uncertain"}], "operations.primaryOffering"),
+                createMultiChoice("decision-style", "6.2 Decision-Making Style", "How are major decisions typically made?", "radio", [{label: "Top-Down"}, {label: "Consensus-Based"}, {label: "Data-Driven"}, {label: "Hybrid"}], "operations.decisionStyle"),
+                createSelectField("risk-appetite", "6.3 Risk Appetite", "How would you rate your organization's willingness to take risks?", "operations.riskAppetite", [
+                    {value: "", label: "Select a rating..."}, {value: "3", label: "3 - Averse"}, {value: "5", label: "5 - Calculated"}, {value: "7", label: "7 - Seeking"}, {value: "10", label: "10 - Aggressive"}
+                ]),
+                createTextField('team-capabilities', "6.4 Team Strengths & Gaps", "Strength: What is your team's single greatest strength? \nGap: What is the most critical skill or role gap?", 5, "operations.teamCapabilities"),
+            ]
+        },
+        {
+            title: "Section 7: Past Performance & Lessons", id: "section-lessons", path: "lessons",
+            description: "Reflect on past events to inform future strategy. Your history contains your most valuable lessons.",
+            changesPrompt: "What is the most significant event (positive or negative) from the past year?",
+            goalsPrompt: "What is your primary goal related to learning from the past? (e.g., implement a formal post-mortem process)",
+            parts: [
+                createTextField("past-failure", "7.1 Analyze a Past Failure", "Describe a significant past failure or setback. What was the primary lesson learned?", 4, "lessons.failureAnalysis"),
+                createMultiChoice("failure-pattern", "Was this an isolated event or part of a recurring pattern?", "", "radio", [{label: "Isolated Event"}, {label: "Recurring Pattern"}], "lessons.failurePattern"),
+                createTextField("past-success", "7.2 Analyze a Past Success", "Describe a significant past success. What was the key factor that made it successful?", 4, "lessons.successAnalysis"),
+                createMultiChoice("success-pattern", "Was this an isolated event or part of a recurring pattern?", "", "radio", [{label: "Isolated Event"}, {label: "Recurring Pattern"}], "lessons.successPattern"),
+                createTextField("past-attempts", "7.3 What Have You Already Tried to Solve This Problem?", "Briefly list any previous attempts or solutions that were considered or implemented and why they didn't work.", 4, "lessons.pastAttempts")
             ]
         },
     ];
@@ -154,18 +216,25 @@
     const formHtml = [];
     const navHtml = [];
     sections.forEach(section => {
-        formHtml.push(`<h2 id="${section.id}">${section.title}</h2>`);
+        const criticalIcon = section.isCritical ? '🧠 ' : '';
+        formHtml.push(`<h2 id="${section.id}">${criticalIcon} ${section.title}</h2>`);
         if (section.description) { formHtml.push(`<p class="section-explanation">${section.description}</p>`); }
         formHtml.push(`<fieldset>`);
         formHtml.push(section.parts.join(''));
+        if (section.changesPrompt) {
+             formHtml.push(createTextField(`${section.id}-changes`, section.changesPrompt, "", 2, `${section.path}.recentChanges`));
+        }
+         if (section.goalsPrompt) {
+             formHtml.push(createTextField(`${section.id}-goals`, section.goalsPrompt, "", 2, `${section.path}.futureGoals`));
+        }
         formHtml.push(`</fieldset>`);
-        navHtml.push(`<li><a href="#${section.id}">${section.title.split(':')[1].trim()}</a></li>`);
+        const navTitle = section.title.includes(':') ? section.title.split(':')[1].trim() : section.title;
+        navHtml.push(`<li><a href="#${section.id}">${navTitle}</a></li>`);
     });
     
     formContainer.innerHTML = formHtml.join('');
     navLinksContainer.innerHTML = navHtml.join('');
 
-    // --- USER CONTEXT AND AI PROMPT TRIGGER ---
     const buildQuestionnaireHtml = () => {
         const questionnaireParts = [
             `<h2 id="section-questionnaire">User Input for Strategic Audit</h2>`,
@@ -189,7 +258,7 @@
         const conditionalFields = form.querySelectorAll('.conditional-field');
         conditionalFields.forEach(field => {
             const showFor = field.dataset.showFor ? field.dataset.showFor.split(',') : [];
-            if (!selectedArchetype || showFor.includes(selectedArchetype)) {
+            if (!selectedArchetype || showFor.length === 0 || showFor.includes(selectedArchetype)) {
                 field.classList.add('visible');
             } else {
                 field.classList.remove('visible');
@@ -202,28 +271,28 @@
     };
 
     const updateKpiDropdowns = () => {
-        // Handle Financial Metrics
         const financialCheckboxes = form.querySelectorAll('input[name="financial-metrics-checkboxes"]:checked');
         const financialSelect = document.getElementById('important-financial-metric-select');
+        if (!financialSelect) return;
         let financialOptions = '<option value="">Select the most important...</option>';
         financialCheckboxes.forEach(checkbox => {
             financialOptions += `<option value="${checkbox.value}">${checkbox.value}</option>`;
         });
-        if (financialSelect) financialSelect.innerHTML = financialOptions;
+        financialSelect.innerHTML = financialOptions;
 
-        // Handle Customer Metrics
         const customerCheckboxes = form.querySelectorAll('input[name="customer-metrics-checkboxes"]:checked');
         const customerSelect = document.getElementById('important-customer-metric-select');
+        if (!customerSelect) return;
         let customerOptions = '<option value="">Select the most important...</option>';
         customerCheckboxes.forEach(checkbox => {
             customerOptions += `<option value="${checkbox.value}">${checkbox.value}</option>`;
         });
-        if (customerSelect) customerSelect.innerHTML = customerOptions;
+        customerSelect.innerHTML = customerOptions;
     };
 
     const clearForm = () => {
         if (confirm("Are you sure you want to clear all fields? This action cannot be undone.")) {
-            localStorage.removeItem('convoking4_autosave_v8_1');
+            localStorage.removeItem('convoking4_autosave_v8_2');
             form.reset();
             handleArchetypeChange();
             updateKpiDropdowns();
@@ -268,6 +337,18 @@
         const checkboxPaths = new Set();
         form.querySelectorAll('input[type="checkbox"][data-path]').forEach(el => checkboxPaths.add(el.dataset.path));
         checkboxPaths.forEach(path => set(data, path, []));
+
+        form.querySelectorAll('[data-rank-path]').forEach(group => {
+            const path = group.dataset.rankPath;
+            const ranks = [];
+            group.querySelectorAll('input[type="number"]').forEach(input => {
+                if (input.value) {
+                    ranks.push({ rank: parseInt(input.value, 10), value: input.dataset.rankValue });
+                }
+            });
+            ranks.sort((a, b) => a.rank - b.rank);
+            set(data, path, ranks.map(item => item.value));
+        });
 
         form.querySelectorAll('[data-path]').forEach(el => {
             const path = el.dataset.path;
@@ -326,10 +407,10 @@
         setDirty(false);
     };
 
-    const saveStateToLocalStorage = () => { if (isDirty) localStorage.setItem('convoking4_autosave_v8_1', JSON.stringify(gatherFormData())); };
+    const saveStateToLocalStorage = () => { if (isDirty) localStorage.setItem('convoking4_autosave_v8_2', JSON.stringify(gatherFormData())); };
 
     const loadStateFromLocalStorage = () => {
-        const savedData = localStorage.getItem('convoking4_autosave_v8_1');
+        const savedData = localStorage.getItem('convoking4_autosave_v8_2');
         if (savedData) {
             try {
                 const data = JSON.parse(savedData);
@@ -337,7 +418,7 @@
                 showNotification('Unsaved progress from a previous session has been restored.', 'info');
             } catch (e) {
                 console.error("Could not parse autosaved data.", e);
-                localStorage.removeItem('convoking4_autosave_v8_1');
+                localStorage.removeItem('convoking4_autosave_v8_2');
             }
         }
     };
@@ -362,7 +443,7 @@
             a.href = URL.createObjectURL(blob);
             a.download = fileName;
             document.body.appendChild(a);
-            a.click();
+a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
             setDirty(false);
@@ -392,7 +473,6 @@
         event.target.value = null;
     };
 
-    // --- AI PROMPT MODAL LOGIC ---
     const consultAiButton = document.querySelector('#consult-ai-button');
     const aiPromptModal = document.getElementById('ai-prompt-modal');
     const aiPromptOutput = document.getElementById('ai-prompt-output');
@@ -432,7 +512,7 @@ My Top Two Analytical 'Languages': "${analyticalLanguage || "Not specified."}"
 
 [3.0 CORE DIRECTIVES: ANALYSIS & MODELING]
 3.1: **Situational Synthesis:** Synthesize all data to form a holistic understanding of the organization.
-3.2: **Inconsistency & Gap Detection:** Actively search for contradictions between sections (e.g., Archetype vs. KPIs, Funding Model vs. Goals).
+3.2: **Inconsistency & Gap Detection:** Actively search for contradictions between sections (e.g., Archetype vs. KPIs, Funding Model vs. Goals, Stated Values vs. Past Failures).
 3.3: **Recommendation Formulation:** Formulate specific, constructive suggestions for each section of the input to improve its clarity and depth.
 3.4: **Red Teaming:** Dedicate a section to a 'Pre-Mortem' analysis. Assume the company fails 18 months from now. Based on the snapshot, identify the top 3 most likely reasons for this failure.
 3.5: **Alignment Score:** At the beginning of the diagnostic, provide a 1-10 'Strategic Alignment Score' that rates the overall consistency between the company's archetype, goals, capabilities, and market assessment, and briefly justify the score.
@@ -448,7 +528,7 @@ Generate a report with the following structure precisely. Use markdown for forma
 ---
 
 ## Part 1: Executive Summary
-(Provide a concise, high-level summary of the organization's current situation. Highlight the most critical challenge or tension you've identified, likely related to their biggest 'Headwind'.)
+(Provide a concise, high-level summary of the organization's current situation. Highlight the most critical challenge or tension you've identified.)
 
 ---
 
@@ -457,10 +537,10 @@ Generate a report with the following structure precisely. Use markdown for forma
 (Summarize the organization's archetype, mission, and core strategy.)
 
 ### 2.2 Key Strengths & Tailwinds
-(Based on the input, what are the most significant strengths and positive momentum points? Reference their stated 'Tailwind'.)
+(Based on the input, what are the most significant strengths and positive momentum points?)
 
 ### 2.3 Critical Vulnerabilities & Headwinds
-(Based on the input, what are the most significant gaps, risks, or negative patterns? Reference their stated 'Headwind'.)
+(Based on the input, what are the most significant gaps, risks, or negative patterns?)
 
 ---
 
@@ -479,13 +559,13 @@ Generate a report with the following structure precisely. Use markdown for forma
 ## Part 4: Recommendations for Improving Your Snapshot
 (Provide section-by-section feedback. For each suggestion, use the following format exactly, including the question number.)
 
-**Section 3.1: Financial Metrics**
-* **Current Input:** (Summarize the user's selected KPIs and their choice for the most important one.)
-* **Analysis & Suggestions:** "Your focus on [Most Important Metric] is clear. To improve, consider adding a brief note on *why* this is the most critical metric for your current stage. Is it for growth, profitability, or investor validation?"
-
-**Section 4.1: Economic Buyer's / Sponsor's Job To Be Done**
+**Section 3.3: Core Values & a Recent Example**
 * **Current Input:** (Summarize the user's input for this question)
-* **Analysis & Suggestions:** "This is a well-defined JTBD. To make it even more powerful, ensure it aligns with the 'Headwind' you identified in Section 5. A great JTBD directly addresses the organization's primary challenge."
+* **Analysis & Suggestions:** "This is a strong, evidence-based value. To improve, consider if this behavior is consistently rewarded or if it was an isolated act of heroism. A healthy culture makes excellence a repeatable process, not just a single event."
+
+**Section 6.4: Team Strengths & Gaps**
+* **Current Input:** (Summarize the user's input for this question)
+* **Analysis & Suggestions:** "The link between the skill gap and its business impact is clear. To make this even more compelling for an investor, try to quantify the impact. For example: 'Failing to generate qualified leads stalls growth by an estimated two quarters and puts our next fundraising milestone at risk.'"
 
 ---
 
@@ -503,19 +583,22 @@ This diagnostic report is a critical asset. Save it to your device using a clear
     if (consultAiButton) {
         consultAiButton.addEventListener('click', () => { aiPromptOutput.value = generateAIPrompt(); aiPromptModal.showModal(); });
     }
-    closeModalButtons.forEach(button => button.addEventListener('click', () => aiPromptModal.close()));
-    
-    selectPromptButton.addEventListener('click', () => {
-        aiPromptOutput.select();
-        aiPromptOutput.setSelectionRange(0, aiPromptOutput.value.length);
-        try {
-            navigator.clipboard.writeText(aiPromptOutput.value);
-            showNotification('Prompt copied to clipboard!', 'success');
-        } catch (err) {
-            console.error('Clipboard API failed:', err);
-            showNotification('Could not copy text.', 'error');
-        }
-    });
+    if (closeModalButtons) {
+        closeModalButtons.forEach(button => button.addEventListener('click', () => aiPromptModal.close()));
+    }
+    if (selectPromptButton) {
+        selectPromptButton.addEventListener('click', () => {
+            aiPromptOutput.select();
+            aiPromptOutput.setSelectionRange(0, aiPromptOutput.value.length);
+            try {
+                navigator.clipboard.writeText(aiPromptOutput.value);
+                showNotification('Prompt copied to clipboard!', 'success');
+            } catch (err) {
+                console.error('Clipboard API failed:', err);
+                showNotification('Could not copy text.', 'error');
+            }
+        });
+    }
     
     function updateScrollMargin() {
         if (!topBar) return;
@@ -538,11 +621,17 @@ This diagnostic report is a critical asset. Save it to your device using a clear
     }
 
     // --- Initial Setup and Event Listeners ---
-    document.getElementById('version-display').textContent = `Version ${APP_VERSION}`;
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    if(document.getElementById('version-display')) {
+        document.getElementById('version-display').textContent = `Version ${APP_VERSION}`;
+    }
+    if(document.getElementById('current-date')) {
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
     if (saveButton) saveButton.addEventListener('click', saveProfileToFile);
     if (clearButton) clearButton.addEventListener('click', clearForm);
-    document.getElementById('progress-file-loader').addEventListener('change', loadProfileFromFile);
+    if(document.getElementById('progress-file-loader')) {
+        document.getElementById('progress-file-loader').addEventListener('change', loadProfileFromFile);
+    }
     
     form.addEventListener('submit', (event) => event.preventDefault());
     form.addEventListener('input', () => {
@@ -571,7 +660,8 @@ This diagnostic report is a critical asset. Save it to your device using a clear
     document.addEventListener('DOMContentLoaded', () => {
         loadStateFromLocalStorage();
         updateScrollMargin();
-        updateKpiDropdowns(); // Initialize dropdowns on page load
+        updateKpiDropdowns();
+        handleArchetypeChange();
     });
     window.addEventListener('resize', debounce(updateScrollMargin));
 
