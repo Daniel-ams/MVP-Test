@@ -1,5 +1,5 @@
-         // Convoking4 Snapshot Assessment
-// Version: 9.2 (Phase 2 - Fixed)
+// Convoking4 Snapshot Assessment
+// Version: 9.3 (Phase 2 - Comprehensive & Fixed)
 // Date: August 20, 2025
 
 (function() {
@@ -15,11 +15,14 @@
     const briefingContainer = document.getElementById('briefing-document-container');
     const briefingContent = document.getElementById('briefing-document-content');
     const returnToMenuButton = document.getElementById('return-to-menu-button');
+    const undertakingLoaderContainer = document.getElementById('undertaking-loader-container');
+    const loadAiReportLabel = document.getElementById('load-ai-report-label');
     
     const form = document.getElementById('profile-form');
     const formContainer = document.getElementById('dynamic-form-content');
     const navLinksContainer = document.getElementById('nav-links-container');
     const saveButton = document.getElementById('generate-button');
+    const clearButton = document.getElementById('clear-form-button');
     const orgFileLoader = document.getElementById('org-file-loader');
     const aiReportLoader = document.getElementById('ai-report-loader');
     
@@ -27,6 +30,9 @@
     const aiPromptOutput = document.getElementById('ai-prompt-output');
     const selectPromptButton = document.getElementById('select-prompt-button');
     const closeModalButtons = document.querySelectorAll('#close-modal-button-top, #close-modal-button-bottom');
+
+    let isDirty = false;
+    let isRepopulating = false;
 
     // --- FORM FIELD FACTORY FUNCTIONS ---
     const createTextField = (id, title, description, rows = 3, path, example = '') => {
@@ -48,6 +54,16 @@
                 </div>`;
     };
     
+    const createSelectField = (id, title, description, path, options, example = '') => {
+        let optionsHTML = '<option value="">Select...</option>' + options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('');
+        return `<div class="form-group">
+                    <label for="${id}" class="main-label">${title}</label>
+                    ${description ? `<p class="description">${description}</p>` : ''}
+                    ${example ? `<p class="option-example">${example}</p>` : ''}
+                    <select id="${id}" data-path="${path}">${optionsHTML}</select>
+                </div>`;
+    };
+
     const createMultiChoice = (id, title, description, type, options, path) => {
         let optionsHTML = options.map(opt => {
             const uniqueId = `${id}-${opt.label.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
@@ -71,6 +87,18 @@
                 </div>`;
     };
 
+    const createSlider = (id, title, description, path, minLabel = 'Low', maxLabel = 'High') => {
+        return `<div class="form-group">
+                    <label for="${id}" class="main-label">${title}</label>
+                    ${description ? `<p class="description">${description}</p>` : ''}
+                    <div class="slider-container">
+                        <span class="slider-label">${minLabel}</span>
+                        <input type="range" id="${id}" min="1" max="10" value="5" class="confidence-slider" data-path="${path}">
+                        <span class="slider-label">${maxLabel}</span>
+                    </div>
+                </div>`;
+    };
+
     // --- ASSESSMENT BLUEPRINTS ---
 
     const organizationalSections = [
@@ -80,9 +108,54 @@
             parts: [
                 createInputField("org-name", "1.1 Organization Name", "", "basicInfo.organizationName", "", "text", {required: true}),
                 createInputField("org-year", "1.2 Year Founded", "", "basicInfo.yearFounded", "", "number"),
+                createInputField("org-city", "1.3 Primary City", "", "basicInfo.city"),
+                createInputField("org-country", "1.4 Primary Country", "", "basicInfo.country"),
             ]
         },
-        // ... Add other organizational sections here
+        {
+            title: "Section 2: Organization Identity", id: "section-identity", path: "identity",
+            description: "Define the core operational, legal, and purposeful structure of your organization.",
+            parts: [
+                createMultiChoice("org-archetype", "2.1 Primary Organizational Archetype", "Select the option that best describes your organization's fundamental purpose.", "radio", [
+                    {label: "For-Profit Business"}, {label: "Mission-Driven Organization"}, {label: "Member/Community-Based Organization"}, {label: "Hybrid Organization"}, {label: "Uncertain"}
+                ], "identity.archetype"),
+                createMultiChoice("funding-model", "2.2 Primary Funding Model", "How does your organization primarily finance its operations?", "radio", [
+                    {label: "Revenue from Services/Products", showFor: ["For-Profit Business", "Hybrid Organization"]},
+                    {label: "Donations/Grants", showFor: ["Mission-Driven Organization", "Hybrid Organization"]},
+                    {label: "Membership Fees", showFor: ["Member/Community-Based Organization"]},
+                    {label: "Bootstrapping", showFor: ["For-Profit Business"]},
+                    {label: "Uncertain"}
+                ], "identity.fundingModel"),
+                createMultiChoice("legal-structure", "2.3 Legal Structure", "What is your organization's legal form?", "radio", [
+                    {label: "LLC", showFor: ["For-Profit Business", "Hybrid Organization"]},
+                    {label: "Corporation (C-Corp/S-Corp)", showFor: ["For-Profit Business", "Hybrid Organization"]},
+                    {label: "Nonprofit/NGO", showFor: ["Mission-Driven Organization"]},
+                    {label: "Pre-Formal/Informal"}, {label: "Uncertain"}
+                ], "identity.legalStructure"),
+            ]
+        },
+        {
+            title: "Section 3: Core Strategy", id: "section-strategy", path: "strategy",
+            description: "Define your organization's strategic direction.",
+            parts: [
+                 createTextField("mission-statement", "3.1 Mission Statement", "Your 'Why'. What is your organization's core purpose?", 3, "strategy.missionStatement"),
+                 createTextField("core-values", "3.2 Core Values & a Recent Example", "For one of your core values, describe a specific, recent example of how the team lived (or failed to live) that value.", 4, "strategy.valuesAndBehaviors", "Example: Value: Customer Obsession. Behavior: An engineer stayed up all night to fix a single customer's critical bug."),
+            ]
+        },
+        {
+            title: "Section 4: Key Performance Indicators (KPIs)", id: "section-kpis", path: "kpis",
+            description: "Strategy without data is speculation. Provide core metrics to create a quantitative baseline.",
+            parts: [
+                createMultiChoice("financial-metrics-checkboxes", "4.1 Financial Metrics", "Select all relevant financial indicators.", "checkbox", [
+                    {label: "Annual Recurring Revenue (ARR)"}, {label: "Monthly Burn Rate"}, {label: "Cash Runway (Months)"}, {label: "LTV:CAC Ratio"}, {label: "Gross Margin"}
+                ], "kpis.financialMetrics"),
+                createSelectField("important-financial-metric-select", "Of those, which is the SINGLE most important financial metric right now?", "", "kpis.mostImportantFinancial", []),
+                createMultiChoice("customer-metrics-checkboxes", "4.2 Customer Metrics", "Select all relevant customer health indicators.", "checkbox", [
+                    {label: "Active Users/Customers"}, {label: "Churn Rate (%)"}, {label: "Net Promoter Score (NPS)"}, {label: "Customer Satisfaction (CSAT)"}, {label: "Customer Retention Rate"}
+                ], "kpis.customerMetrics"),
+                createSelectField("important-customer-metric-select", "Of those, which is the SINGLE most important customer metric right now?", "", "kpis.mostImportantCustomer", [])
+            ]
+        }
     ];
 
     const undertakingSections = [
@@ -94,14 +167,28 @@
                 createTextField("undertaking-mission", "1.2 Mission Statement", "What is the core purpose of this undertaking? What problem does it solve?", 3, "undertakingInfo.mission"),
             ]
         },
-        // ... Add other undertaking sections here
+        {
+            title: "Section 2: Beneficiaries & Stakeholders", id: "section-undertaking-stakeholders", path: "undertakingStakeholders",
+            description: "Define who this undertaking serves and who is involved in its success.",
+            parts: [
+                createTextField("beneficiaries", "2.1 Primary Beneficiaries", "Who will directly benefit from the success of this undertaking? (e.g., customers, community members, internal teams)", 3, "undertakingStakeholders.beneficiaries"),
+                createTextField("key-stakeholders", "2.2 Key Stakeholders", "List the key people or teams whose support is critical for this undertaking to succeed.", 3, "undertakingStakeholders.keyStakeholders"),
+            ]
+        },
+        {
+            title: "Section 3: Project KPIs & Resources", id: "section-undertaking-kpis", path: "undertakingKpis",
+            description: "Define how success will be measured and what resources are required.",
+            parts: [
+                createTextField("success-metrics", "3.1 Success Metrics", "List 2-3 specific, measurable KPIs for this undertaking.", 3, "undertakingKpis.successMetrics", "e.g., Achieve 500 new user sign-ups; Reduce customer support tickets by 15%"),
+                createTextField("resources", "3.2 Required Resources", "What is the estimated budget, team, and timeline for this undertaking?", 3, "undertakingKpis.resources"),
+            ]
+        },
     ];
 
     // --- APPLICATION CONTROLLER LOGIC ---
 
     const initializeApp = () => {
-        chooserView.classList.remove('hidden');
-        appView.classList.add('hidden');
+        showChooserView();
 
         assessOrgButton.addEventListener('click', () => {
             currentAssessmentType = 'organization';
@@ -109,8 +196,8 @@
         });
 
         assessUndertakingButton.addEventListener('click', () => {
-            showNotification('Please load the parent Organizational Snapshot file (.json).', 'info');
-            orgFileLoader.click();
+            currentAssessmentType = 'undertaking';
+            showUndertakingLoader();
         });
 
         orgFileLoader.addEventListener('change', handleOrgFileLoadForUndertaking);
@@ -124,11 +211,26 @@
         activeOrganization = null;
         currentAssessmentType = null;
         briefingContainer.classList.add('hidden');
+        undertakingLoaderContainer.classList.add('hidden');
+        form.reset();
+        formContainer.innerHTML = '';
+        navLinksContainer.innerHTML = '';
+    };
+    
+    const showUndertakingLoader = () => {
+        chooserView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        form.reset();
+        formContainer.innerHTML = '';
+        navLinksContainer.innerHTML = '';
+        saveButton.classList.add('hidden');
+        undertakingLoaderContainer.classList.remove('hidden');
+        loadAiReportLabel.classList.add('disabled');
     };
 
     const renderForm = (sections) => {
-        chooserView.classList.add('hidden');
-        appView.classList.remove('hidden');
+        undertakingLoaderContainer.classList.add('hidden');
+        saveButton.classList.remove('hidden');
 
         const formHtml = [];
         const navHtml = [];
@@ -142,6 +244,8 @@
         
         formContainer.innerHTML = formHtml.join('');
         navLinksContainer.innerHTML = navHtml.join('');
+        
+        updateKpiDropdowns();
     };
 
     const handleOrgFileLoadForUndertaking = (event) => {
@@ -156,9 +260,8 @@
                     throw new Error("This does not appear to be a valid Organizational Snapshot file.");
                 }
                 activeOrganization = data;
-                showNotification(`Loaded context from "${activeOrganization.basicInfo.organizationName}". Now, please load the corresponding AI Diagnostic Report (.md or .txt).`, 'success');
-                aiReportLoader.click();
-
+                showNotification(`Loaded context from "${activeOrganization.basicInfo.organizationName}". Now, please load the corresponding AI Diagnostic Report.`, 'success');
+                loadAiReportLabel.classList.remove('disabled');
             } catch (error) {
                 console.error('Error parsing organization file:', error);
                 showNotification(error.message, 'error');
@@ -169,6 +272,10 @@
     };
 
     const handleAiReportLoad = (event) => {
+        if (!activeOrganization) {
+            showNotification('Please load the parent organization snapshot first.', 'error');
+            return;
+        }
         const file = event.target.files[0];
         if (!file) return;
 
@@ -176,7 +283,6 @@
         reader.onload = function (e) {
             briefingContent.textContent = e.target.result;
             briefingContainer.classList.remove('hidden');
-            currentAssessmentType = 'undertaking';
             renderForm(undertakingSections);
             showNotification(`AI Diagnostic Report loaded. You can now begin the Undertaking Snapshot.`, 'success');
         };
@@ -256,6 +362,10 @@
 
     const getValueFromPath = (obj, path) => {
         return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    };
+
+    const updateKpiDropdowns = () => {
+        // This function is a placeholder for now as KPIs are not in the simplified blueprints
     };
 
     const showNotification = (message, type = 'success') => {
