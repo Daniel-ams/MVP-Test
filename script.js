@@ -98,7 +98,6 @@
                 </div>`;
     };
 
-    // --- VERSION 8.2 (COMPREHENSIVE) FORM BLUEPRINT ---
     const sections = [
         {
             title: "Section 1: Basic Information", id: "section-basic-info", path: "basicInfo",
@@ -210,9 +209,15 @@
                 createTextField("past-attempts", "7.3 What Have You Already Tried to Solve This Problem?", "Briefly list any previous attempts or solutions that were considered or implemented and why they didn't work.", 4, "lessons.pastAttempts")
             ]
         },
+        {
+            title: "Section 8: Source Document & Context", id: "section-source-document", path: "sourceDocument",
+            description: "To enhance the AI's analysis, paste the content of a relevant source document below (e.g., business plan, meeting notes, market analysis). The AI will use this to validate and enrich the snapshot.",
+            parts: [
+                createTextField("source-document-paste", "Paste Source Document Content Here", "", 20, "sourceDocument.content")
+            ]
+        }
     ];
 
-    // --- DYNAMICALLY BUILD THE FORM AND NAV ---
     const formHtml = [];
     const navHtml = [];
     sections.forEach(section => {
@@ -252,7 +257,6 @@
     };
     finalContainer.innerHTML = buildQuestionnaireHtml();
 
-    // --- CORE APP LOGIC ---
     const handleArchetypeChange = () => {
         const selectedArchetype = form.querySelector('input[name="org-archetype"]:checked')?.value;
         const conditionalFields = form.querySelectorAll('.conditional-field');
@@ -274,20 +278,36 @@
         const financialCheckboxes = form.querySelectorAll('input[name="financial-metrics-checkboxes"]:checked');
         const financialSelect = document.getElementById('important-financial-metric-select');
         if (!financialSelect) return;
+        const currentFinancialValue = financialSelect.value;
         let financialOptions = '<option value="">Select the most important...</option>';
+        let valueStillExists = false;
         financialCheckboxes.forEach(checkbox => {
             financialOptions += `<option value="${checkbox.value}">${checkbox.value}</option>`;
+            if (checkbox.value === currentFinancialValue) {
+                valueStillExists = true;
+            }
         });
         financialSelect.innerHTML = financialOptions;
+        if (valueStillExists) {
+            financialSelect.value = currentFinancialValue;
+        }
 
         const customerCheckboxes = form.querySelectorAll('input[name="customer-metrics-checkboxes"]:checked');
         const customerSelect = document.getElementById('important-customer-metric-select');
         if (!customerSelect) return;
+        const currentCustomerValue = customerSelect.value;
         let customerOptions = '<option value="">Select the most important...</option>';
+        let customerValueExists = false;
         customerCheckboxes.forEach(checkbox => {
             customerOptions += `<option value="${checkbox.value}">${checkbox.value}</option>`;
+            if (checkbox.value === currentCustomerValue) {
+                customerValueExists = true;
+            }
         });
         customerSelect.innerHTML = customerOptions;
+        if (customerValueExists) {
+            customerSelect.value = currentCustomerValue;
+        }
     };
 
     const clearForm = () => {
@@ -390,6 +410,9 @@
                 if (el.type === 'radio') {
                     if (el.value === value) el.checked = true;
                 } else if (el.type === 'checkbox') {
+                    // Clear all checkboxes for this group first
+                    form.querySelectorAll(`[data-path="${path}"]`).forEach(cb => cb.checked = false);
+                    // Then check the ones that are in the data
                     if (Array.isArray(value)) {
                         value.forEach(v => {
                             if(el.value === v) el.checked = true;
@@ -443,7 +466,7 @@
             a.href = URL.createObjectURL(blob);
             a.download = fileName;
             document.body.appendChild(a);
-a.click();
+            a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
             setDirty(false);
@@ -506,6 +529,14 @@ ${JSON.stringify(orgData, null, 2)}
 \`\`\`
 </details>
 
+[2.2 SOURCE DOCUMENT]
+// The following is a source document provided by the user. You MUST use it as the primary source of truth to validate, enrich, and cross-reference the information provided in the JSON snapshot. Prioritize specific data and quotes from this document in your analysis.
+<details><summary>View Source Document</summary>
+<document>
+${allData.sourceDocument?.content || "No source document provided."}
+</document>
+</details>
+
 [2.5 USER CONTEXT PROFILE (FROM QUESTIONNAIRE)]
 My Relationship to the Organization: "${relationship || 'Not specified.'}"
 My Top Two Analytical 'Languages': "${analyticalLanguage || "Not specified."}"
@@ -516,6 +547,7 @@ My Top Two Analytical 'Languages': "${analyticalLanguage || "Not specified."}"
 3.3: **Recommendation Formulation:** Formulate specific, constructive suggestions for each section of the input to improve its clarity and depth.
 3.4: **Red Teaming:** Dedicate a section to a 'Pre-Mortem' analysis. Assume the company fails 18 months from now. Based on the snapshot, identify the top 3 most likely reasons for this failure.
 3.5: **Alignment Score:** At the beginning of the diagnostic, provide a 1-10 'Strategic Alignment Score' that rates the overall consistency between the company's archetype, goals, capabilities, and market assessment, and briefly justify the score.
+3.6: **Prioritization & Synthesis:** After completing the full diagnostic, synthesize all findings (especially the 'Headwinds,' 'Inconsistencies,' and 'Red Team' analysis) to identify the single most critical, underlying business situation. Formulate a prioritized list of decision-making focus areas.
 
 [4.0 OUTPUT PROTOCOL]
 Generate a report with the following structure precisely. Use markdown for formatting.
@@ -535,10 +567,8 @@ Generate a report with the following structure precisely. Use markdown for forma
 ## Part 2: Situational Analysis
 ### 2.1 Core Identity & Strategic Intent
 (Summarize the organization's archetype, mission, and core strategy.)
-
 ### 2.2 Key Strengths & Tailwinds
 (Based on the input, what are the most significant strengths and positive momentum points?)
-
 ### 2.3 Critical Vulnerabilities & Headwinds
 (Based on the input, what are the most significant gaps, risks, or negative patterns?)
 
@@ -547,10 +577,8 @@ Generate a report with the following structure precisely. Use markdown for forma
 ## Part 3: Diagnostic Deep Dive
 ### 3.1 Inconsistency & Misalignment Report
 (List the top 3-5 most significant inconsistencies or misalignments you detected.)
-
 ### 3.2 Bias and Blind Spot Assessment (Skeptical Investor Questions)
 (Present this as a list of pointed questions for each unselected analytical language, as per directive 1.1.)
-
 ### 3.3 Red Team Analysis (Pre-Mortem)
 (Based on directive 3.4, list the top 3 likely reasons for failure and recommend the single most important action to mitigate the #1 risk.)
 
@@ -561,21 +589,38 @@ Generate a report with the following structure precisely. Use markdown for forma
 
 **Section 3.3: Core Values & a Recent Example**
 * **Current Input:** (Summarize the user's input for this question)
-* **Analysis & Suggestions:** "This is a strong, evidence-based value. To improve, consider if this behavior is consistently rewarded or if it was an isolated act of heroism. A healthy culture makes excellence a repeatable process, not just a single event."
+* **Analysis & Suggestions:** "This is a strong, evidence-based value. To improve, consider if this behavior is consistently rewarded or if it was an isolated act of heroism."
 
 **Section 6.4: Team Strengths & Gaps**
 * **Current Input:** (Summarize the user's input for this question)
-* **Analysis & Suggestions:** "The link between the skill gap and its business impact is clear. To make this even more compelling for an investor, try to quantify the impact. For example: 'Failing to generate qualified leads stalls growth by an estimated two quarters and puts our next fundraising milestone at risk.'"
+* **Analysis & Suggestions:** "The link between the skill gap and its business impact is clear. To make this even more compelling, try to quantify the impact. e.g., 'Failing to generate qualified leads stalls growth by an estimated two quarters.'"
 
 ---
 
 ## Part 5: The 3 Critical Priorities & Path Forward
-(Synthesize all findings into the 3 most critical actions or strategic questions that, if addressed in the next 30 days, would create the most value and mitigate the most risk. Conclude with a summary that sets the stage for the next phase of planning.)
+(Synthesize all findings into the 3 most critical actions or strategic questions that, if addressed in the next 30 days, would create the most value and mitigate the most risk.)
 
 ---
 
-**Next Step: Save This Report**
-This diagnostic report is a critical asset. Save it to your device using a clear naming convention (e.g., \`org_convoking4_AI-Diagnostic_2025-08-20.md\`). It serves as the official 'shared understanding' and will be used as the foundational briefing document for any subsequent Undertaking assessments.
+## Part 6: Recommended Strategic Priorities
+(Based on your synthesis, state the single most critical business situation the organization needs to address. Frame it as a clear problem statement. Then, provide a numbered list of 3-4 recommended priorities for decision-making. These should be strategic areas of focus, not specific solutions. Start with the most urgent and impactful.)
+
+**Critical Business Situation:**
+(e.g., The organization has a compelling vision but lacks the go-to-market capabilities to validate its product, leading to a high risk of burning through its cash runway before achieving product-market fit.)
+
+**Recommended Decision-Making Priorities:**
+1. **Validate the Ideal Customer Profile:** Your low confidence score in the market assessment is the highest-risk area. Every subsequent decision should prioritize validating who the customer is and what they need.
+2. **Address the Leadership Gap:** The 'Team Gaps' section points to this as a critical vulnerability. The next priority should be deciding how to fill this gap.
+
+---
+
+**Your Next Step: Save This Analysis**
+This AI-generated analysis is a valuable record of your organization's snapshot. Here’s how to save and use it:
+
+1.  **Save the Report:** Copy all the text from this report and paste it into a simple text editor (like Notepad on Windows or TextEdit on Mac).
+2.  **Name the File Clearly:** When you save the file, give it a descriptive name so you can easily find it later. We recommend this format: \`org_YourOrganizationName_AI-Diagnostic_Date.md\`
+    *(Saving as a Plain Text \`.txt\` file also works perfectly.)*
+3.  **Keep it for Future Projects:** This saved report is now the official summary of your organization's current situation. You will use it as the starting point or **'briefing document'** whenever you begin a new project or initiative (an 'Undertaking') in the future.
 `;
         return promptTemplate.trim();
     };
@@ -604,7 +649,6 @@ This diagnostic report is a critical asset. Save it to your device using a clear
         if (!topBar) return;
         const headerHeight = topBar.getBoundingClientRect().height;
         const marginValue = Math.ceil(headerHeight) + 20;
-
         if (!scrollMarginStyleElement) {
             scrollMarginStyleElement = document.createElement('style');
             document.head.appendChild(scrollMarginStyleElement);
@@ -656,7 +700,6 @@ This diagnostic report is a critical asset. Save it to your device using a clear
         }
     });
 
-    // --- Final Initialization ---
     document.addEventListener('DOMContentLoaded', () => {
         loadStateFromLocalStorage();
         updateScrollMargin();
