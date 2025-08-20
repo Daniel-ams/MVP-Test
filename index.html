@@ -35,6 +35,7 @@
                         <span id="current-date"></span>
                     </div>
                     <div class="top-bar-actions">
+                        <button id="return-to-menu-button" class="button-label">Main Menu</button>
                         <label for="progress-file-loader" class="button-label">Load Profile</label>
                         <button id="clear-form-button" class="button-label" style="background: none; border: 1px solid #ccc;">Clear Form</button>
                     </div>
@@ -61,7 +62,8 @@
     <!-- Hidden file inputs and notification banner -->
     <div id="notification-banner"></div>
     <input type="file" id="org-file-loader" style="display:none" accept=".json">
-    <input type="file" id="undertaking-file-loader" style="display:none" accept=".json">
+    <input type="file" id="ai-report-loader" style="display:none" accept=".md, .txt">
+
 
     <!-- AI Prompt Modal (remains the same) -->
     <dialog id="ai-prompt-modal">
